@@ -13,6 +13,7 @@
 #include <string.h>
 #include <unistd.h>
 
+
 // .,~==== interpreter for THX-1138 assembly ====~,.
 //
 // This is an emulated version of a microcontroller with
@@ -20,6 +21,12 @@
 // functionality. Programs can operate on the message
 // buffer and use opcode 0x07 to update the display, so
 // that animated greetings can be created.
+
+
+#define MAX_SIZE 0x100000 
+#define MAX_RECORDS 10000000000   
+
+
 void animate(char *msg, unsigned char *program) {
     unsigned char regs[16];
     char *mptr = msg; // TODO: how big is this buffer?
@@ -27,6 +34,14 @@ void animate(char *msg, unsigned char *program) {
     int i = 0;
     int zf = 0;
     while (pc < program+256) {
+        if (pc < program || pc>=program + 256) {
+            fprintf(stderr, "Program counter out of bounds\n");
+            break;
+        }
+    }
+    
+    
+    {
         unsigned char op, arg1, arg2;
         op = *pc;
         arg1 = *(pc+1);
@@ -113,6 +128,7 @@ void print_gift_card_info(struct this_gift_card *thisone) {
 				printf("      signature: %32.32s\n",gcac_ptr->actual_signature);
 			}
 		}
+        
 		else if (gcrd_ptr->type_of_record == 2) {
 			printf("      record_type: message\n");
 			printf("      message: %s\n",(char *)gcrd_ptr->actual_record);
@@ -183,7 +199,10 @@ void gift_card_json(struct this_gift_card *thisone) {
 struct this_gift_card *gift_card_reader(FILE *input_fd) {
 
 	struct this_gift_card *ret_val = malloc(sizeof(struct this_gift_card));
-
+    if (!ret_val) {
+        fprintf(stderr, "Memory allocation failed for gift card\n");
+        return NULL;
+    }
     void *optr;
 	void *ptr;
 
@@ -192,7 +211,13 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 
 		struct gift_card_data *gcd_ptr;
 		/* JAC: Why aren't return types checked? */
-		fread(&ret_val->num_bytes, 4,1, input_fd);
+
+        fread(&ret_val->num_bytes, 4, 1, input_fd);
+        if (ret_val->num_bytes > MAX_SIZE || ret_val->num_bytes <= 0) {
+        fprintf(stderr, "Invalid size: %zu\n", ret_val->num_bytes);
+        free(ret_val);
+        return NULL; 
+        }
 
 		// Make something the size of the rest and read it in
 		ptr = malloc(ret_val->num_bytes);
@@ -203,13 +228,19 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 		gcd_ptr = ret_val->gift_card_data = malloc(sizeof(struct gift_card_data));
 		gcd_ptr->merchant_id = ptr;
 		ptr += 32;
+        gcd_ptr ->merchant_id[31] = '\0';
 //		printf("VD: %d\n",(int)ptr - (int) gcd_ptr->merchant_id);
 		gcd_ptr->customer_id = ptr;
 		ptr += 32;
+        gcd_ptr->customer_id[31] = '\0';
 		/* JAC: Something seems off here... */
 		gcd_ptr->number_of_gift_card_records = *((char *)ptr);
 		ptr += 4;
-
+        if (gcd_ptr->number_of_gift_card_records < 0 || gcd_ptr->number_of_gift_card_records > MAX_RECORDS) {
+        fprintf(stderr, "Invalid number of records: %d\n", gcd_ptr->number_of_gift_card_records);
+        free(ret_val);
+        return NULL; // Handle the error appropriately
+        }
 		gcd_ptr->gift_card_record_data = (void *)malloc(gcd_ptr->number_of_gift_card_records*sizeof(void*));
 
 		// Now ptr points at the gift card record data
@@ -233,6 +264,11 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 			// amount change
 			if (gcrd_ptr->type_of_record == 1) {
 				gcac_ptr->amount_added = *((int*) ptr);
+                if (gcac_ptr->amount_added <0) {
+                    fprintf(stderr, "Invalid amount added: %d\n", gcac_ptr->amount_added);
+                    free(gcac_ptr);
+                    continue;
+                }
 				ptr += 4;
 
 				// don't need a sig if negative

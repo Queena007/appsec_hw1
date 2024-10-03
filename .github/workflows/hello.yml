@@ -1,25 +1,43 @@
-name: Gift Card Reader Tests
+name: CI
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  run-tests:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up environment
+      - name: Set up dependencies
         run: |
-          sudo apt update
-          sudo apt install -y gcc make
+          sudo apt-get update
+          sudo apt-get install -y afl++
 
-      - name: Build the project
-        run: make
+      - name: Compile with AFL++
+        run: |
+          CC=afl-gcc CXX=afl-g++ make clean all
 
-      - name: Run tests
-        run: make test
+      - name: Prepare input for fuzzing
+        run: |
+          mkdir afl_input
+          cp testcases/valid/*.gft afl_input/
+          cp testcases/invalid/*.gft afl_input/
+
+      - name: Run AFL++ Fuzzer
+        run: |
+          afl-fuzz -i afl_input -o afl_output -M fuzzer1 ./giftcardreader 1 @@ &
+          afl-fuzz -i afl_input -o afl_output -S fuzzer2 ./giftcardreader 1 @@ &
+          afl-fuzz -i afl_input -o afl_output -S fuzzer3 ./giftcardreader 1 @@
+          
+      - name: Collect results
+        run: |
+          echo "Fuzzing results:"
+          ls afl_output

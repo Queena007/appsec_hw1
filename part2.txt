@@ -1,0 +1,20 @@
+#Documenting the existing bugs
+
+1. crash1.gft
+This creates segmentation fault
+The segmentation fault is created due to an invalid location request
+The involved file directs a number of bytes that leads to an underflow when processed.
+Therefore, the The underlying issue stems from the program not properly 
+validating input sizes, leading to unsafe memory operations.
+
+2. crash2.gft
+This results to the realization of undefined behavior
+The input includes an invalid record type (`\xFF`) 
+and an excessively large record size (`\x00\x00\x00\xFF`).
+This results in upredictable outcome 
+
+3. hang.gft
+This results in the emergence of infinite loop
+The file contains an invalid opcode (`\x00\x00\x00\x02`) 
+that the `animate` function attempts to execute.
+This prompts the program to continuously cycles without 

@@ -66,7 +66,7 @@
 #include<stdlib.h>
 
 struct this_gift_card {
-	int num_bytes;
+	size_t num_bytes;
 	void *gift_card_data;
 }; 
 

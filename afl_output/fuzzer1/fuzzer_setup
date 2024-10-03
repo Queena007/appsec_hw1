@@ -1,0 +1,6 @@
+# environment variables:
+AFL_CUSTOM_INFO_PROGRAM=./giftcardreader
+AFL_CUSTOM_INFO_PROGRAM_ARGV=1 @@
+AFL_CUSTOM_INFO_OUT=afl_output/fuzzer1
+# command line:
+'afl-fuzz' '-i' 'afl_input' '-o' 'afl_output' '-M' 'fuzzer1' './giftcardreader' '1' '@@'
