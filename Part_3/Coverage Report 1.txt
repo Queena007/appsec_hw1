@@ -3,4 +3,4 @@ After running gcc --coverage on giftcardreader.c and executing several test case
 
 Coverage Report 2
 
-I ifocbbused on enhancing coverage for the gift_card_json function, specifically targeting type 2 records. By executing cov_2.gft that includes a type 2 record, trigerring the relevant code path defined by the line else if (argv[1][0] == '2') gift_card_json(thisone)
+I focused on enhancing coverage for the gift_card_json function, specifically targeting type 2 records. By executing cov_2.gft that includes a type 2 record, trigerring the relevant code path defined by the line else if (argv[1][0] == '2') gift_card_json(thisone)
