@@ -55,15 +55,16 @@ void animate(char *msg, unsigned char *program) {
                 zf = !regs[arg1];
                 break;
             case 0x07:
-                puts(msg);
+                   puts(msg);
                 break;
             case 0x08:
                 goto done;
+            //Fix Hang: By using the unsigned char, there is a limit to using negative numbers which potentially caused the hang
             case 0x09:
-                pc += (char)arg1;
+                pc += (unsigned char)arg1;
                 break;
             case 0x10:
-                if (zf) pc += (char)arg1;
+                if (zf) pc += (unsigned char)arg1;
                 break;
         }
         pc+=3;
@@ -126,7 +127,7 @@ void print_gift_card_info(struct this_gift_card *thisone) {
             animate(gcp_ptr->message, gcp_ptr->program);
 		}
 	}
-	printf("  Total value: %d\n\n",get_gift_card_value(thisone));
+	printf("      message: %.32s\n", (char *)gcrd_ptr->actual_record);
 }
 
 // Added to support web functionalities
@@ -193,6 +194,11 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 		struct gift_card_data *gcd_ptr;
 		/* JAC: Why aren't return types checked? */
 		fread(&ret_val->num_bytes, 4,1, input_fd);
+    
+        //Fix Crash1: By not allowing a negative memory allocation
+        if (ret_val->num_bytes <0){
+            exit(0); //Exit properly
+        }
 
 		// Make something the size of the rest and read it in
 		ptr = malloc(ret_val->num_bytes);
@@ -200,6 +206,7 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 
         optr = ptr-4;
 
+      
 		gcd_ptr = ret_val->gift_card_data = malloc(sizeof(struct gift_card_data));
 		gcd_ptr->merchant_id = ptr;
 		ptr += 32;
@@ -215,8 +222,10 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 		// Now ptr points at the gift card record data
 		for (int i=0; i < gcd_ptr->number_of_gift_card_records; i++){
 			//printf("i: %d\n",i);
+            
 			struct gift_card_record_data *gcrd_ptr;
 			gcrd_ptr = gcd_ptr->gift_card_record_data[i] = malloc(sizeof(struct gift_card_record_data));
+            
 			struct gift_card_amount_change *gcac_ptr;
 			gcac_ptr = gcrd_ptr->actual_record = malloc(sizeof(struct gift_card_record_data));
             struct gift_card_program *gcp_ptr;
@@ -229,11 +238,14 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 			gcrd_ptr->type_of_record = *((char *)ptr);
 			ptr += 4;
             //printf("type of rec: %d\n", gcrd_ptr->type_of_record);
+            
 
 			// amount change
 			if (gcrd_ptr->type_of_record == 1) {
+                
 				gcac_ptr->amount_added = *((int*) ptr);
 				ptr += 4;
+                
 
 				// don't need a sig if negative
 				/* JAC: something seems off here */
@@ -247,7 +259,19 @@ struct this_gift_card *gift_card_reader(FILE *input_fd) {
 				gcrd_ptr->actual_record = ptr;
 				// advance by the string size + 1 for nul
                 // BDG: does not seem right
-				ptr=ptr+strlen((char *)gcrd_ptr->actual_record)+1;
+
+
+                //Fix: Null Termination
+				size_t msg_length = strlen((char *)ptr);
+                if (msg_length < 32) {
+                    memcpy(gcrd_ptr->actual_record, ptr, msg_length + 1); // +1 for null terminator
+                    ptr += msg_length + 1; // Move past the message
+                } else {
+                    // Handle error: message too long
+                    fprintf(stderr, "Error: message exceeds maximum length\n");
+                    exit(0);
+                }
+                
 			}
             // BDG: gift cards can run code?? Might want to check this one carefully...
             // text animatino (BETA)

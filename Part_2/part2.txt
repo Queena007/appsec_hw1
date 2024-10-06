@@ -1,0 +1,11 @@
+Test Case: crash1.gft
+Bug: At line192-200, the program tries to allocate negative memory which causes the program to halt.
+Fix: this can be fixed by ensuring that memory value allocation is valid and non-negative
+
+Test Case: crash2.gft
+Bug: Null-termination assumption violation. The program assumes that strings are null-terminated, leading to out-of-bounds reads if they are not.
+Fix: Ensure all string data is null-terminated before using it. Validate string lengths appropriately.
+
+Test Case: hang.gft
+Bug: Infinite loop in the `animate` function. The program can enter an infinite loop if the opcode manipulation is set incorrectly.
+Fix: Implement checks to avoid executing invalid or repeating instructions without a break condition.
